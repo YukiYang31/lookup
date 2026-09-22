@@ -16,7 +16,7 @@ import org.plumelib.options.Options;
 import org.plumelib.util.EntryReader;
 import org.plumelib.util.EntryReader.CommentFormat;
 import org.plumelib.util.EntryReader.EntryFormat;
-import org.plumelib.util.FilesPlume;
+import org.plumelib.util.FilesP;
 import org.plumelib.util.RegexUtil;
 
 /**
@@ -34,7 +34,7 @@ import org.plumelib.util.RegexUtil;
  * <p>A file can contain one or more entries, each of which is a short entry or a long entry.
  *
  * <ul>
- *   <li>A short entry is a single paragraph (delimited from the next entry by one or two blank
+ *   <li>A short entry is a single paragraph, delimited from the next entry by one or two blank
  *       lines (default: 1). Lookup searches all of a short entry.
  *   <li>A long entry is introduced by a line that begins with '{@code >entry}'. The remainder of
  *       that line is a one-line description of the entry. A long entry is terminated by '{@code
@@ -56,74 +56,222 @@ import org.plumelib.util.RegexUtil;
  *
  * <ul>
  *   <li id="optiongroup:Where-to-search">Where to search
- *       <ul>
- *         <li id="option:entry-file"><b>-f</b> <b>--entry-file=</b><i>string</i>. Specify the
- *             colon-separated search list for the file that contains information to be searched.
- *             Only the first file found is used, though it may itself contain include directives.
- *             [default: ~/lookup/root]
- *         <li id="option:search-body"><b>-b</b> <b>--search-body=</b><i>boolean</i>. Search the
- *             body of long entries in addition to the entry's description. The bodies of short
- *             entries are always searched. [default: false]
- *       </ul>
+ *                                        <ul>
+ *                                          <li id="option:entry-file"><b>-f</b>
+ *                                                                     <b>--entry-file=</b><i>string</i>.
+ *                                                                     Specify the colon-separated
+ *                                                                     search list for the file that
+ *                                                                     contains information to be
+ *                                                                     searched. Only the first file
+ *                                                                     found is used, though it may
+ *                                                                     itself contain include
+ *                                                                     directives. [default:
+ *                                                                     ~/lookup/root]
+ *                                          <li id="option:search-body"><b>-b</b>
+ *                                                                      <b>--search-body=</b><i>boolean</i>.
+ *                                                                      Search the body of long
+ *                                                                      entries in addition to the
+ *                                                                      entry's description. The
+ *                                                                      bodies of short entries are
+ *                                                                      always searched. [default:
+ *                                                                      false]
+ *                                        </ul>
  *   <li id="optiongroup:What-to-search-for">What to search for
- *       <ul>
- *         <li id="option:regular-expressions"><b>-e</b>
- *             <b>--regular-expressions=</b><i>boolean</i>. Specifies that keywords are regular
- *             expressions. If false, keywords are text matches. [default: false]
- *         <li id="option:case-sensitive"><b>-c</b> <b>--case-sensitive=</b><i>boolean</i>. If true,
- *             keywords matching is case sensitive. By default, both regular expressions and text
- *             keywords are case-insensitive. [default: false]
- *         <li id="option:word-match"><b>-w</b> <b>--word-match=</b><i>boolean</i>. If true, match a
- *             text keyword only as a separate word, not as a substring of a word. This option may
- *             be supplied together with {@code --regular-expressions}. [default: false]
- *       </ul>
+ *                                           <ul>
+ *                                             <li id="option:regular-expressions"><b>-e</b>
+ *                                                                                 <b>--regular-expressions=</b><i>boolean</i>.
+ *                                                                                 Specifies that
+ *                                                                                 keywords are
+ *                                                                                 regular
+ *                                                                                 expressions. If
+ *                                                                                 false, keywords
+ *                                                                                 are text matches.
+ *                                                                                 [default: false]
+ *                                             <li id="option:case-sensitive"><b>-c</b>
+ *                                                                            <b>--case-sensitive=</b><i>boolean</i>.
+ *                                                                            If true, keyword
+ *                                                                            matching is case
+ *                                                                            sensitive. By default,
+ *                                                                            both regular
+ *                                                                            expressions and text
+ *                                                                            keywords are
+ *                                                                            case-insensitive.
+ *                                                                            [default: false]
+ *                                             <li id="option:word-match"><b>-w</b>
+ *                                                                        <b>--word-match=</b><i>boolean</i>.
+ *                                                                        If true, match a keyword
+ *                                                                        or regular expression only
+ *                                                                        as a separate word, not as
+ *                                                                        a substring of a word.
+ *                                                                        This option may be
+ *                                                                        supplied together with
+ *                                                                        {@code
+ *                                                                        --regular-expressions}.
+ *                                                                        <p>A search term whose
+ *                                                                        first or last character is
+ *                                                                        not a word character
+ *                                                                        matches almost nothing,
+ *                                                                        because a word boundary
+ *                                                                        that is adjacent to a
+ *                                                                        non-word character
+ *                                                                        requires a word character
+ *                                                                        on its other side. For
+ *                                                                        example, {@code #define}
+ *                                                                        would match "abc#define"
+ *                                                                        but not "#define X".
+ *                                                                        Lookup reports an error
+ *                                                                        rather than performing
+ *                                                                        such a search. [default:
+ *                                                                        false]
+ *                                           </ul>
  *   <li id="optiongroup:How-to-print-matches">How to print matches
- *       <ul>
- *         <li id="option:print-all"><b>-a</b> <b>--print-all=</b><i>boolean</i>. By default, if
- *             multiple entries are matched, only a synopsis of each entry is printed. If
- *             'print_all' is selected then the body of each matching entry is printed. [default:
- *             false]
- *         <li id="option:item-num"><b>-i</b> <b>--item-num=</b><i>integer</i>. Specifies which item
- *             to print when there are multiple matches. The index is 1-based; that is, it starts
- *             counting at 1.
- *         <li id="option:show-location"><b>-l</b> <b>--show-location=</b><i>boolean</i>. If true,
- *             show the filename/line number of each matching entry in the output. [default: false]
- *       </ul>
+ *                                             <ul>
+ *                                               <li id="option:print-all"><b>-a</b>
+ *                                                                         <b>--print-all=</b><i>boolean</i>.
+ *                                                                         By default, if multiple
+ *                                                                         entries are matched, only
+ *                                                                         a synopsis of each entry
+ *                                                                         is printed. If
+ *                                                                         'print_all' is selected
+ *                                                                         then the body of each
+ *                                                                         matching entry is
+ *                                                                         printed. [default: false]
+ *                                               <li id="option:item-num"><b>-i</b>
+ *                                                                        <b>--item-num=</b><i>integer</i>.
+ *                                                                        Specifies which item to
+ *                                                                        print when there are
+ *                                                                        multiple matches. The
+ *                                                                        index is 1-based; that is,
+ *                                                                        it starts counting at 1.
+ *                                               <li id="option:show-location"><b>-l</b>
+ *                                                                             <b>--show-location=</b><i>boolean</i>.
+ *                                                                             If true, show the
+ *                                                                             filename/line number
+ *                                                                             of each matching
+ *                                                                             entry in the output.
+ *                                                                             [default: false]
+ *                                             </ul>
  *   <li id="optiongroup:Customizing-format-of-files-to-be-searched">Customizing format of files to
- *       be searched
- *       <ul>
- *         <li id="option:two-blank-lines"><b>--two-blank-lines=</b><i>boolean</i>. If true, entries
- *             are separated by two blank lines. [default: false]
- *         <li id="option:code-fences"><b>--code-fences=</b><i>boolean</i>. If true, code fences are
- *             supported: blank lines within ```...``` do not end an entry. [default: false]
- *         <li id="option:entry-start-re"><b>--entry-start-re=</b><i>regex</i>. Matches the start of
- *             a long entry. [default: ^&gt;entry *()]
- *         <li id="option:entry-stop-re"><b>--entry-stop-re=</b><i>regex</i>. Matches the end of a
- *             long entry. [default: ^&lt;entry]
- *         <li id="option:description-re"><b>--description-re=</b><i>regex</i>. Matches the
- *             description for a long entry.
- *         <li id="option:comment-re"><b>--comment-re=</b><i>string</i>. Matches an entire
- *             single-line comment (not just a comment start).
- *         <li
+ *                                                                   be searched
+ *                                                                   <ul>
+ *                                                                     <li id="option:two-blank-lines"><b>--two-blank-lines=</b><i>boolean</i>.
+ *                                                                                                     If
+ *                                                                                                     true,
+ *                                                                                                     entries
+ *                                                                                                     are
+ *                                                                                                     separated
+ *                                                                                                     by
+ *                                                                                                     two
+ *                                                                                                     blank
+ *                                                                                                     lines.
+ *                                                                                                     [default:
+ *                                                                                                     false]
+ *                                                                     <li id="option:code-fences"><b>--code-fences=</b><i>boolean</i>.
+ *                                                                                                 If
+ *                                                                                                 true,
+ *                                                                                                 code
+ *                                                                                                 fences
+ *                                                                                                 are
+ *                                                                                                 supported:
+ *                                                                                                 blank
+ *                                                                                                 lines
+ *                                                                                                 within
+ *                                                                                                 ```...```
+ *                                                                                                 do
+ *                                                                                                 not
+ *                                                                                                 end
+ *                                                                                                 an
+ *                                                                                                 entry.
+ *                                                                                                 [default:
+ *                                                                                                 false]
+ *                                                                     <li id="option:entry-start-re"><b>--entry-start-re=</b><i>regex</i>.
+ *                                                                                                    Matches
+ *                                                                                                    the
+ *                                                                                                    start
+ *                                                                                                    of
+ *                                                                                                    a
+ *                                                                                                    long
+ *                                                                                                    entry.
+ *                                                                                                    [default:
+ *                                                                                                    ^&gt;entry
+ *                                                                                                    *()]
+ *                                                                     <li id="option:entry-stop-re"><b>--entry-stop-re=</b><i>regex</i>.
+ *                                                                                                   Matches
+ *                                                                                                   the
+ *                                                                                                   end
+ *                                                                                                   of
+ *                                                                                                   a
+ *                                                                                                   long
+ *                                                                                                   entry.
+ *                                                                                                   [default:
+ *                                                                                                   ^&lt;entry]
+ *                                                                     <li id="option:description-re"><b>--description-re=</b><i>regex</i>.
+ *                                                                                                    Matches
+ *                                                                                                    the
+ *                                                                                                    description
+ *                                                                                                    for
+ *                                                                                                    a
+ *                                                                                                    long
+ *                                                                                                    entry.
+ *                                                                     <li id="option:comment-re"><b>--comment-re=</b><i>string</i>.
+ *                                                                                                Matches
+ *                                                                                                an
+ *                                                                                                entire
+ *                                                                                                single-line
+ *                                                                                                comment
+ *                                                                                                (not
+ *                                                                                                just
+ *                                                                                                a
+ *                                                                                                comment
+ *                                                                                                start).
+ *                                                                     <li
  *             id="option:multiline-comment-start-re"><b>--multiline-comment-start-re=</b><i>string</i>.
- *             Matches the start of a possibly multi-line comment.
- *         <li id="option:multiline-comment-end-re"><b>--multiline-comment-end-re=</b><i>string</i>.
- *             Matches the end of a possibly multi-line comment.
- *         <li id="option:include-re"><b>--include-re=</b><i>string</i>. Matches an include
- *             directive; group 1 is the file name. [default: \\include\{(.*)\}]
- *       </ul>
+ *                                                                                                                               Matches
+ *                                                                                                                               the
+ *                                                                                                                               start
+ *                                                                                                                               of
+ *                                                                                                                               a
+ *                                                                                                                               possibly
+ *                                                                                                                               multi-line
+ *                                                                                                                               comment.
+ *                                                                     <li id="option:multiline-comment-end-re"><b>--multiline-comment-end-re=</b><i>string</i>.
+ *                                                                                                              Matches
+ *                                                                                                              the
+ *                                                                                                              end
+ *                                                                                                              of
+ *                                                                                                              a
+ *                                                                                                              possibly
+ *                                                                                                              multi-line
+ *                                                                                                              comment.
+ *                                                                     <li id="option:include-re"><b>--include-re=</b><i>string</i>.
+ *                                                                                                Matches
+ *                                                                                                an
+ *                                                                                                include
+ *                                                                                                directive;
+ *                                                                                                group
+ *                                                                                                1
+ *                                                                                                is
+ *                                                                                                the
+ *                                                                                                file
+ *                                                                                                name.
+ *                                                                                                [default:
+ *                                                                                                \\include\{(.*)\}]
+ *                                                                   </ul>
  *   <li id="optiongroup:Getting-help">Getting help
- *       <ul>
- *         <li id="option:help"><b>-h</b> <b>--help=</b><i>boolean</i>. Show detailed help
- *             information and exit. [default: false]
- *         <li id="option:verbose"><b>-v</b> <b>--verbose=</b><i>boolean</i>. Print progress
- *             information. [default: false]
- *       </ul>
+ *                                     <ul>
+ *                                       <li id="option:help"><b>-h</b>
+ *                                                            <b>--help=</b><i>boolean</i>. Show
+ *                                                            detailed help information and exit.
+ *                                                            [default: false]
+ *                                       <li id="option:verbose"><b>-v</b>
+ *                                                               <b>--verbose=</b><i>boolean</i>.
+ *                                                               Print progress information.
+ *                                                               [default: false]
+ *                                     </ul>
  * </ul>
  *
  * <!-- end options doc -->
  */
-@SuppressWarnings("deprecation") // uses deprecated classes in this package
 public final class Lookup {
 
   /** If true, produce diagnostic output. */
@@ -160,15 +308,20 @@ public final class Lookup {
   public static boolean regular_expressions = false;
 
   /**
-   * If true, keywords matching is case sensitive. By default, both regular expressions and text
+   * If true, keyword matching is case sensitive. By default, both regular expressions and text
    * keywords are case-insensitive.
    */
   @Option("-c Keywords are case sensitive")
   public static boolean case_sensitive = false;
 
   /**
-   * If true, match a text keyword only as a separate word, not as a substring of a word. This
-   * option may be supplied together with {@code --regular-expressions}.
+   * If true, match a keyword or regular expression only as a separate word, not as a substring of a
+   * word. This option may be supplied together with {@code --regular-expressions}.
+   *
+   * <p>A search term whose first or last character is not a word character matches almost nothing,
+   * because a word boundary that is adjacent to a non-word character requires a word character on
+   * its other side. For example, {@code #define} would match "abc#define" but not "#define X".
+   * Lookup reports an error rather than performing such a search.
    */
   @Option("-w Only match search terms against complete words")
   public static boolean word_match = false;
@@ -291,6 +444,11 @@ public final class Lookup {
       System.err.println("Error: --include-re is not a regex with 1 group: " + include_re);
       System.exit(254);
     }
+    // The upper bound on --item-num depends on the number of matches, so it is checked later.
+    if (item_num != null && item_num < 1) {
+      System.err.printf("Illegal --item-num %d, should be positive%n", item_num);
+      System.exit(1);
+    }
 
     // If help was requested, print it and exit
     if (help) {
@@ -304,7 +462,7 @@ public final class Lookup {
 
     // Make sure at least one keyword was specified
     if (keywords.length == 0) {
-      System.out.println("Error: No keywords specified");
+      System.err.println("Error: No keywords specified");
       options.printUsage();
       System.exit(254);
     }
@@ -312,17 +470,17 @@ public final class Lookup {
     // Find the first readable root file.
     String[] entryFileCandidates = entry_file.split(":", -1);
     String rootFile = null;
-    for (String candidate_unexpanded : entryFileCandidates) {
-      String candidate = FilesPlume.expandFilename(candidate_unexpanded);
+    for (String candidateUnexpanded : entryFileCandidates) {
+      String candidate = FilesP.expandFilename(candidateUnexpanded);
       if (Files.isReadable(Path.of(candidate))) {
         rootFile = candidate;
         break;
       }
     }
     if (rootFile == null) {
-      System.out.println("Error: Can't read any entry files.");
+      System.err.println("Error: Can't read any entry files.");
       for (String unreadable : entryFileCandidates) {
-        System.out.printf("  entry file %s%n", FilesPlume.expandFilename(unreadable));
+        System.err.printf("  entry file %s%n", FilesP.expandFilename(unreadable));
       }
       System.exit(254);
     }
@@ -338,20 +496,37 @@ public final class Lookup {
 
       // Precompute the regular expressions, for efficiency.
       int flags = case_sensitive ? 0 : (Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
-      if (word_match) {
-        flags |= Pattern.UNICODE_CHARACTER_CLASS;
-      }
+      // Always use UNICODE_CHARACTER_CLASS, so that constructs such as `\b`, `\w`, and `\d` mean
+      // the same thing in a user-supplied regex whether or not --word-match is also supplied.
+      flags |= Pattern.UNICODE_CHARACTER_CLASS;
       List<Pattern> patterns = new ArrayList<>();
       if (regular_expressions) {
         for (String keyword : keywords) {
           if (!RegexUtil.isRegex(keyword)) {
-            System.out.println("Error: not a regex: " + keyword);
+            System.err.println("Error: not a regex: " + keyword);
             System.exit(254);
           }
-          patterns.add(Pattern.compile(keyword, flags));
+          // If --word-match is also supplied, match the regex only at word boundaries.  The
+          // composed regex needs a validity check of its own, because wrapping can turn a valid
+          // regex into an invalid one.  For example, `\Qfoo` is a regex, but in `\b(?:\Qfoo)\b`
+          // the `\Q` quotes the rest of the regex, leaving the group unclosed.
+          String keywordRegex = word_match ? "\\b(?:" + keyword + ")\\b" : keyword;
+          if (!RegexUtil.isRegex(keywordRegex)) {
+            // Only --word-match can reach here: without it, keywordRegex is keyword, which was
+            // checked above.  So blame --word-match, and do not claim that keyword is not a regex.
+            System.err.printf(
+                "Error: cannot apply --word-match to %s: %s%n",
+                keyword, RegexUtil.regexError(keywordRegex));
+            System.exit(254);
+          }
+          if (word_match) {
+            checkWordMatchable(keyword, true);
+          }
+          patterns.add(Pattern.compile(keywordRegex, flags));
         }
       } else if (word_match) {
         for (String keyword : keywords) {
+          checkWordMatchable(keyword, false);
           String keywordRegex = "\\b" + Pattern.quote(keyword) + "\\b";
           patterns.add(Pattern.compile(keywordRegex, flags));
         }
@@ -373,7 +548,9 @@ public final class Lookup {
             System.out.printf("%d matches in %d entries\r", matchingEntries.size(), entryCnt);
           }
           String toSearch =
-              (search_body || entry.shortEntry) ? entry.body : entry.getDescription(description_re);
+              (search_body || entry.shortEntry())
+                  ? entry.body()
+                  : entry.getDescription(description_re);
           boolean found = true;
           if (usePatterns) {
             for (Pattern pattern : patterns) {
@@ -399,7 +576,7 @@ public final class Lookup {
           entry = reader.getEntry();
         }
       } catch (FileNotFoundException e) {
-        System.out.printf(
+        System.err.printf(
             "Error: Can't read %s at line %d in file %s%n",
             e.getMessage(), reader.getLineNumber(), reader.getFileName());
         System.exit(254);
@@ -409,29 +586,18 @@ public final class Lookup {
       int numMatchingEntries = matchingEntries.size();
       if (numMatchingEntries == 0) {
         System.out.println("Nothing found.");
-      } else if (numMatchingEntries == 1) {
-        EntryReader.Entry e = matchingEntries.get(0);
-        if (show_location) {
-          System.out.printf("%s:%d:%n", e.filename, e.lineNumber);
-        }
-        System.out.print(e.body);
-      } else { // there are multiple matches
+      } else {
+        // Check --item-num against the number of matches, even if there is only one match.
         if (item_num != null) {
-          if (item_num < 1) {
-            System.out.printf("Illegal --item-num %d, should be positive%n", item_num);
-            System.exit(1);
-          }
           if (item_num > numMatchingEntries) {
-            System.out.printf(
+            System.err.printf(
                 "Illegal --item-num %d, should be <= %d%n", item_num, numMatchingEntries);
             System.exit(1);
           }
-          EntryReader.Entry e = matchingEntries.get(item_num - 1);
-          if (show_location) {
-            System.out.printf("%s:%d:%n", e.filename, e.lineNumber);
-          }
-          System.out.print(e.body);
-        } else {
+          printMatch(matchingEntries.get(item_num - 1));
+        } else if (numMatchingEntries == 1) {
+          printMatch(matchingEntries.get(0));
+        } else { // there are multiple matches
           if (print_all) {
             System.out.printf("%d matches found (separated by dashes below)%n", numMatchingEntries);
           } else {
@@ -443,17 +609,12 @@ public final class Lookup {
           for (int i = 0; i < numMatchingEntries; i++) {
             EntryReader.Entry e = matchingEntries.get(i);
             if (print_all) {
-              if (show_location) {
-                System.out.printf(
-                    "%n-------------------------%n%s:%d:%n", e.filename, e.lineNumber);
-              } else {
-                System.out.printf("%n-------------------------%n");
-              }
-              System.out.print(e.body);
+              System.out.printf("%n-------------------------%n");
+              printMatch(e);
             } else {
               if (show_location) {
                 System.out.printf(
-                    "  -i=%d %s:%d: %s%n", i + 1, e.filename, e.lineNumber, e.firstLine);
+                    "  -i=%d %s:%d: %s%n", i + 1, e.filename(), e.lineNumber(), e.firstLine());
               } else {
                 System.out.printf("  -i=%d %s%n", i + 1, e.getDescription(description_re));
               }
@@ -462,5 +623,97 @@ public final class Lookup {
         }
       }
     }
+  }
+
+  /**
+   * Characters that are special in a regular expression, outside a character class. A regular
+   * expression that starts or ends with one of these might still match a word character, so {@link
+   * #checkWordMatchable} draws no conclusion from it.
+   *
+   * <p>This list intentionally omits {@code -} and {@code &}, which are special only within a
+   * character class. A search term that starts or ends within a character class starts or ends with
+   * {@code [} or {@code ]}, which are in this list.
+   */
+  private static final String regexMetacharacters = "\\^$.|?*+()[]{}";
+
+  /** Matches one word character. */
+  private static final Pattern wordCharacter =
+      Pattern.compile("\\w", Pattern.UNICODE_CHARACTER_CLASS);
+
+  /**
+   * If {@code --word-match} would prevent {@code keyword} from matching anything useful, prints an
+   * error message and exits.
+   *
+   * <p>{@code --word-match} wraps a search term in {@code \b}. A {@code \b} that is adjacent to a
+   * non-word character matches only when the character on the {@code \b}'s other side is a word
+   * character. So a search term that starts with a non-word character matches only immediately
+   * after a word character, and one that ends with a non-word character matches only immediately
+   * before one. For example, {@code \b(?:#define)\b} does not match "#define X", though it does
+   * match "abc#define". That is essentially never what a user wants, so diagnose it rather than
+   * silently reporting that nothing was found.
+   *
+   * <p>For a regular expression, this test is a heuristic: it diagnoses only a search term whose
+   * first or last character is unambiguously a literal non-word character. It never diagnoses a
+   * search term that might match a word character, because the diagnostic is fatal. For literal
+   * text, the test is exact.
+   *
+   * @param keyword the search term that the user supplied
+   * @param isRegex true if the search term is a regular expression rather than literal text
+   */
+  private static void checkWordMatchable(String keyword, boolean isRegex) {
+    if (keyword.isEmpty() || (isRegex && keyword.indexOf('|') != -1)) {
+      // An empty search term has no first or last character.  In an alternation, a non-word
+      // character at either end of the regex need not be at that end of every match.
+      return;
+    }
+    int first = keyword.codePointAt(0);
+    int last = keyword.codePointBefore(keyword.length());
+    String position;
+    int offender;
+    if (isLiteralNonWordCharacter(first, isRegex)) {
+      position = "starts";
+      offender = first;
+    } else if (isLiteralNonWordCharacter(last, isRegex)) {
+      position = "ends";
+      offender = last;
+    } else {
+      return;
+    }
+    System.err.printf(
+        "Error: cannot apply --word-match to %s: it %s with non-word character '%s'%n",
+        keyword, position, Character.toString(offender));
+    System.err.println(
+        "  A word boundary adjacent to a non-word character requires a word character on its other"
+            + " side, so the search would match almost nothing.");
+    System.exit(254);
+  }
+
+  /**
+   * Returns true if {@code c} is certainly matched literally and is not a word character.
+   *
+   * @param c the first or last code point of a search term
+   * @param isRegex true if the search term is a regular expression rather than literal text
+   * @return true if {@code c} is certainly a literal non-word character
+   */
+  private static boolean isLiteralNonWordCharacter(int c, boolean isRegex) {
+    if (isRegex && regexMetacharacters.indexOf(c) != -1) {
+      // The character is special, so it might match a word character, or it might change what a
+      // neighboring character means.
+      return false;
+    }
+    return !wordCharacter.matcher(Character.toString(c)).matches();
+  }
+
+  /**
+   * Prints a matching entry: its location (if {@code --show-location} was supplied) followed by its
+   * body.
+   *
+   * @param entry the entry to print
+   */
+  private static void printMatch(EntryReader.Entry entry) {
+    if (show_location) {
+      System.out.printf("%s:%d:%n", entry.filename(), entry.lineNumber());
+    }
+    System.out.print(entry.body());
   }
 }
